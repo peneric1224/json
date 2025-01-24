@@ -1,29 +1,29 @@
 login
 
 超管
-
 {
   "code": 200,
   "data": {
-    "username": "admin",
+    "username": "Jin",
     "roles": [
-      "admin"
+      "sadmin"
     ],
-    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
+    "token_type": "Bearer",
     "expires": 1737792039
   }
 }
 
 管理员
-
 {
   "code": 200,
   "data": {
-    "username": "sadmin",
+    "username": "tom",
     "roles": [
-      "sadmin"
+      "admin"
     ],
-    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
+    "token_type": "Bearer",
     "expires": 1737792039
   }
 }
@@ -37,7 +37,8 @@ login
     "roles": [
       "common"
     ],
-    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
+    "token_type": "Bearer",
     "expires": 1737792039
   }
 }
