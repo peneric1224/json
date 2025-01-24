@@ -1,0 +1,43 @@
+login
+
+超管
+
+{
+  "code": 200,
+  "data": {
+    "username": "admin",
+    "roles": [
+      "admin"
+    ],
+    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "expires": 1737792039
+  }
+}
+
+管理员
+
+{
+  "code": 200,
+  "data": {
+    "username": "sadmin",
+    "roles": [
+      "sadmin"
+    ],
+    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "expires": 1737792039
+  }
+}
+
+普通用户
+
+{
+  "code": 200,
+  "data": {
+    "username": "mike",
+    "roles": [
+      "common"
+    ],
+    "accessToken": "eyJhbGciOiJIUzUxMiJ9.admin",
+    "expires": 1737792039
+  }
+}
