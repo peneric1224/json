@@ -1,0 +1,44 @@
+// 用户列表
+
+{
+  "code": 200,
+  "data": [
+    {
+      "avatar": "https://avatars.githubusercontent.com/u/44761321",
+      "username": "admin",
+      "nickname": "小铭",
+      "phone": "15888886789",
+      "email": "pgknz9.idj40@yahoo.cn",
+      "sex": 0,
+      "id": 1,
+      "status": 1,
+      "remark": "管理员",
+      "createTime": 1605456000000,
+      "user_google_enable": false,
+      "user_last_login_time": "2025-01-24 16:25:57",
+      "user_last_login_ipv": "10.16.233.138",
+      "user_is_super": true
+    },
+    {
+      "avatar": "https://avatars.githubusercontent.com/u/52823142",
+      "username": "common",
+      "nickname": "小林",
+      "phone": "18288882345",
+      "email": "i2xmy234@outlook.com",
+      "sex": 1,
+      "id": 2,
+      "status": 1,
+      "remark": "普通用户",
+      "createTime": 1605456000000,
+      "user_google_enable": false,
+      "user_last_login_time": "2025-01-24 16:25:57",
+      "user_last_login_ipv": "10.16.233.138",
+      "user_is_super": true
+    }
+  ],
+  "total": {
+    "page": 1,
+    "size": 10,
+    "total": 2
+  }
+}
