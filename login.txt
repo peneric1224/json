@@ -5,9 +5,7 @@ login
   "code": 200,
   "data": {
     "username": "Jin",
-    "roles": [
-      "sadmin"
-    ],
+    "roles": [-1],
     "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
     "token_type": "Bearer",
     "expires": 1737792039
@@ -19,9 +17,7 @@ login
   "code": 200,
   "data": {
     "username": "tom",
-    "roles": [
-      "admin"
-    ],
+    "roles": [1],
     "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
     "token_type": "Bearer",
     "expires": 1737792039
@@ -34,9 +30,21 @@ login
   "code": 200,
   "data": {
     "username": "mike",
-    "roles": [
-      "common"
-    ],
+    "roles": [2],
+    "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
+    "token_type": "Bearer",
+    "expires": 1737792039
+  }
+}
+
+
+非超管，没有分配角色
+
+{
+  "code": 200,
+  "data": {
+    "username": "jack",
+    "roles": [],
     "access_token": "eyJhbGciOiJIUzUxMiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3Mzc3OTIwMzksImlhdCI6MTczNzcwNTYzOSwibmJmIjoxNzM3NzA1NjM5LCJzdWIiOiIxYjg2NGRiZi0xZDQ1LTQwYmItYTlkNi1iZDAxZmMzZTU5NmUifQ.sILD36t3pPAFiPhncZGbLWS0qd5TqsljaH-PFiKadCDe2veW18t5cnGMP2gnZCGT6Lhi4wKHXxq2cVTOecEaOw",
     "token_type": "Bearer",
     "expires": 1737792039
