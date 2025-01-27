@@ -1,44 +1,53 @@
 // 用户列表
+这个完全按照目前的api来的
 
 {
-  "code": 200,
-  "data": [
-    {
-      "avatar": "https://avatars.githubusercontent.com/u/44761321",
-      "username": "admin",
-      "nickname": "小铭",
-      "phone": "15888886789",
-      "email": "pgknz9.idj40@yahoo.cn",
-      "sex": 0,
-      "id": 1,
-      "status": 1,
-      "remark": "管理员",
-      "createTime": 1605456000000,
-      "user_google_enable": false,
-      "user_last_login_time": "2025-01-24 16:25:57",
-      "user_last_login_ipv": "10.16.233.138",
-      "user_is_super": true
-    },
-    {
-      "avatar": "https://avatars.githubusercontent.com/u/52823142",
-      "username": "common",
-      "nickname": "小林",
-      "phone": "18288882345",
-      "email": "i2xmy234@outlook.com",
-      "sex": 1,
-      "id": 2,
-      "status": 1,
-      "remark": "普通用户",
-      "createTime": 1605456000000,
-      "user_google_enable": false,
-      "user_last_login_time": "2025-01-24 16:25:57",
-      "user_last_login_ipv": "10.16.233.138",
-      "user_is_super": true
+    "code": 200,
+    "data": [
+        {
+            "user_id": 1,
+            "user_name": "sadmin",
+            "user_google_enable": false,
+            "user_last_login_time": "2025-01-26 20:19:05",
+            "user_last_login_ipv": "127.0.0.1",
+            "user_remark": "",
+            "user_is_super": true,
+            "user_status": true
+        },
+        {
+            "user_id": 2,
+            "user_name": "test",
+            "user_google_enable": false,
+            "user_last_login_time": "2025-01-26 20:33:19",
+            "user_last_login_ipv": "127.0.0.1",
+            "user_remark": "",
+            "user_is_super": false,
+            "user_status": true
+        },
+        {
+            "user_id": 10,
+            "user_name": "admin",
+            "user_google_enable": false,
+            "user_last_login_time": "1900-01-01 00:00:00",
+            "user_last_login_ipv": "",
+            "user_remark": "",
+            "user_is_super": false,
+            "user_status": true
+        },
+        {
+            "user_id": 11,
+            "user_name": "test1",
+            "user_google_enable": false,
+            "user_last_login_time": "2025-01-26 17:30:11",
+            "user_last_login_ipv": "10.16.233.140",
+            "user_remark": "",
+            "user_is_super": false,
+            "user_status": true
+        }
+    ],
+    "total": {
+        "page": 1,
+        "size": 20,
+        "total": 4
     }
-  ],
-  "total": {
-    "page": 1,
-    "size": 10,
-    "total": 2
-  }
 }
