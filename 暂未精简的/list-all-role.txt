@@ -1,15 +1,24 @@
 // 所有角色列表
-
+完全按照服务的api来的
 {
-  "code": 200,
-  "data": [
+  code: 200,
+  data: [
     {
-      "id": 1,
-      "name": "管理员"
+      role_id: 1,
+      role_name: "管理员",
+      role_description: "admin",
+      role_sequence: 2
     },
     {
-      "id": 2,
-      "name": "普通角色"
+      role_id: 2,
+      role_name: "普通用户",
+      role_description: "common",
+      role_sequence: 1
     }
-  ]
+  ],
+  total: {
+    page: 1,
+    size: 20,
+    total: 2
+  }
 }
