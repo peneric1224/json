@@ -1,32 +1,24 @@
 // 分页角色列表
-
+这个完全按照目前的来的
 {
-  "code": 200,
-  "data": [
-    {
-      "createTime": 1605456000000,
-      "updateTime": 1684512000000,
-      "id": 1,
-      "name": "管理员",
-      "code": "admin",
-      "status": 1,
-      "remark": "管理员拥有系统设置以外的全部权限",
-      "role_sequence": 1
-    },
-    {
-      "createTime": 1605456000000,
-      "updateTime": 1684512000000,
-      "id": 2,
-      "name": "普通角色",
-      "code": "common",
-      "status": 1,
-      "remark": "普通角色拥有部分权限",
-      "role_sequence": 2
+    "code": 200,
+    "data": [
+        {
+            "role_id": 1,
+            "role_name": "管理员",
+            "role_description": "admin",
+            "role_sequence": 2
+        },
+        {
+            "role_id": 2,
+            "role_name": "普通用户",
+            "role_description": "common",
+            "role_sequence": 1
+        }
+    ],
+    "total": {
+        "page": 1,
+        "size": 20,
+        "total": 2
     }
-  ],
-  "total": {
-    "page": 1,
-    "size": 10,
-    "total": 2
-  }
 }
