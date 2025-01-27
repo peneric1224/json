@@ -1,3 +1,5 @@
+// note: 好像除了 redirect, name, path, component，其他的都是放到 meta 里面的
+
 interface ItemProps {
   /** 菜单类型（0代表菜单、1代表iframe、2代表外链、3代表按钮）*/
   menuType: number;
@@ -47,3 +49,4 @@ interface ItemProps {
   /** 按钮权限标识 */
   auths: string;
 }
+
