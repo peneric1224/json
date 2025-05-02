@@ -1,3 +1,79 @@
+<#
+.SYNOPSIS
+从JSON文件中提取指定属性下的所有键并输出为JS数组
+
+.DESCRIPTION
+该脚本读取JSON文件，查找指定属性下的所有键，并将这些键以JavaScript数组格式输出到指定文件中
+
+.PARAMETER InputFile
+输入的JSON文件路径
+
+.PARAMETER PropertyPath
+要提取键的JSON属性路径（例如："parent.child"）
+
+.PARAMETER OutputFile
+输出的JS文件路径
+
+.EXAMPLE
+.\ExtractJsonKeys.ps1 -InputFile "data.json" -PropertyPath "config.settings" -OutputFile "keys.js"
+#>
+
+param(
+    [Parameter(Mandatory=$true)]
+    [string]$InputFile,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$PropertyPath,
+    
+    [Parameter(Mandatory=$true)]
+    [string]$OutputFile
+)
+
+# 读取JSON文件内容
+try {
+    $jsonContent = Get-Content -Path $InputFile -Raw | ConvertFrom-Json -Depth 100
+}
+catch {
+    Write-Error "无法读取或解析JSON文件: $_"
+    exit 1
+}
+
+# 沿着属性路径导航
+$currentObject = $jsonContent
+$pathParts = $PropertyPath -split '\.'
+
+foreach ($part in $pathParts) {
+    if ($null -eq $currentObject -or $currentObject -isnot [System.Management.Automation.PSCustomObject]) {
+        Write-Error "在路径 '$PropertyPath' 中，'$part' 不是对象或不存在"
+        exit 1
+    }
+    
+    $currentObject = $currentObject.$part
+}
+
+# 检查最终对象是否存在
+if ($null -eq $currentObject) {
+    Write-Error "指定的属性路径 '$PropertyPath' 不存在或为null"
+    exit 1
+}
+
+# 获取所有属性名
+$keys = $currentObject.PSObject.Properties.Name
+
+# 输出为JS数组格式
+$jsArray = "const keys = [" + ($keys -join ", ") + "];"
+
+# 写入输出文件
+try {
+    $jsArray | Out-File -FilePath $OutputFile -Encoding utf8
+    Write-Host "成功将键列表写入 $OutputFile"
+}
+catch {
+    Write-Error "无法写入输出文件: $_"
+    exit 1
+}
+
+
 login
 
 超管
