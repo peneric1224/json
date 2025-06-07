@@ -1,0 +1,626 @@
+//@version=5
+strategy("突破策略-5M-Dev 4止盈", overlay=true, format = format.volume, max_bars_back=5000, max_lines_count=500, max_labels_count=500, initial_capital=100,
+ pyramiding=1, close_entries_rule = "ANY", commission_type=strategy.commission.percent, commission_value=0.05,
+ calc_on_order_fills = false, calc_on_every_tick = true,
+ process_orders_on_close=false , use_bar_magnifier = false, fill_orders_on_standard_ohlc = false)
+// 运行多单和空单
+strategy.risk.allow_entry_in(strategy.direction.all)
+
+// 月 日 年 时:分 时区
+int open_time = input.time(timestamp("1 1 2020 00:00 +0800"), title = '下单开启时间', display = display.none, group = '开单')
+// 用户输入参数
+float usdt_margin = input.float(6, "开仓百分比", display = display.none, tooltip = '每次下单保证金为初始资金或者总权益的百分比，默认是按照100x杠杆来计算', group = '开单')
+bool use_fuli = input.bool(true, "是否复利模式", display = display.none, tooltip = '每次开单使用所有权益的百分比进行开单，开启后可以查看右下角的权益值，确保保证金不低于总权益', group = '开单')
+
+bool open_short = input.bool(true, "开空单", display = display.none, tooltip = '是否开空单', group = '开单')
+bool open_long = input.bool(true, "开多单", display = display.none, tooltip = '是否开多单单', group = '开单')
+
+int stop_count1 = input.int(3, title="连续止损数", minval=1, step=1, display = display.none, group = '第1档连续止损')
+float usdt_margin1 = input.float(1, "增加开仓百分比", display = display.none, tooltip = '基于初始开仓百分比增加', group = '第1档连续止损')
+
+int stop_count2 = input.int(10, title="连续止损数", minval=1, step=1, display = display.none, group = '第2档连续止损')
+float usdt_margin2 = input.float(3, "增加开仓百分比", tooltip = '基于初始开仓百分比增加', display = display.none, group = '第2档连续止损')
+
+bool volume_open = input.bool(true, "开启放量条件", display = display.none, tooltip = '是否开启放量条件', group = '放量')
+float volume_multiplier = input.float(1.8, title="放量倍数", minval=1.0, step=0.1, display = display.none, group = '放量') // 放量倍数
+int volume_count = input.int(120, title="放量比较周期", minval=1, step=1, display = display.none, group = '放量') // 放量比较周期
+
+// 止盈止损
+float stop_pct = input.float(-20, "止损位", step=1, display = display.none, tooltip = '止损位百分比，相对于震荡区域的范围的百分比', group = '止损')
+
+float limit_pct_min = input.float(1.48, "低增幅识别值", step=0.1, display = display.none, tooltip = '比如1.5', group = '低振幅')
+float limit0_pct_0 = input.float(-1, "第一移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '低振幅')
+float limit1_pct_0 = input.float(50, "第一止盈位", step=1, display = display.none, tooltip = '第一止盈位百分比，相对于震荡区域的范围的百分比，也是达到第二止盈位后的移动止损位', group = '低振幅')
+float limit01_pct_0 = input.float(110, "第二移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '低振幅')
+float limit2_pct_0 = input.float(220, "第二止盈位(第三移动止损位)", step=1, display = display.none, tooltip = '第二止盈位百分比，相对于震荡区域的范围的百分比，第二止盈位必须要大于第一止盈位，也是达到第三止盈位后的移动止损位', group = '低振幅')
+float limit3_pct_0 = input.float(280, "第三止盈位", step=1, display = display.none, tooltip = '第三止盈位百分比，相对于震荡区域的范围的百分比，第三止盈位必须要大于第二止盈位，否则第三止盈位无效', group = '低振幅')
+float limit4_pct_0 = input.float(380, "第四止盈位", step=1, display = display.none, tooltip = '第四止盈位百分比，相对于震荡区域的范围的百分比，第四止盈位必须要大于第三止盈位，否则第四止盈位无效', group = '低振幅')
+
+float limit0_pct_1 = input.float(-1, "第一移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '正常振幅')
+float limit1_pct_1 = input.float(50, "第一止盈位", step=1, display = display.none, tooltip = '第一止盈位百分比，相对于震荡区域的范围的百分比，也是达到第二止盈位后的移动止损位', group = '正常振幅')
+float limit01_pct_1 = input.float(75, "第二移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '低振幅')
+float limit2_pct_1 = input.float(150, "第二止盈位(第三移动止损位)", step=1, display = display.none, tooltip = '第二止盈位百分比，相对于震荡区域的范围的百分比，第二止盈位必须要大于第一止盈位，也是达到第三止盈位后的移动止损位', group = '正常振幅')
+float limit3_pct_1 = input.float(230, "第三止盈位", step=1, display = display.none, tooltip = '第三止盈位百分比，相对于震荡区域的范围的百分比，第三止盈位必须要大于第二止盈位，否则第三止盈位无效', group = '正常振幅')
+float limit4_pct_1 = input.float(300, "第四止盈位", step=1, display = display.none, tooltip = '第四止盈位百分比，相对于震荡区域的范围的百分比，第四止盈位必须要大于第三止盈位，否则第四止盈位无效', group = '正常振幅')
+
+float limit_pct_max = input.float(2.28, "高增幅识别值", step=0.1, display = display.none, tooltip = '比如2.4', group = '高振幅')
+float limit0_pct_2 = input.float(-1, "第一移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '高振幅')
+float limit1_pct_2 = input.float(60, "第一止盈位", step=1, display = display.none, tooltip = '第一止盈位百分比，相对于震荡区域的范围的百分比，也是达到第二止盈位后的移动止损位', group = '高振幅')
+float limit01_pct_2 = input.float(80, "第二移动止损位", step=1, display = display.none, tooltip = '第一移动止损位百分比，相对于震荡区域的范围的百分比，是达到第一止盈位后的移动止损位', group = '高振幅')
+float limit2_pct_2 = input.float(160, "第二止盈位(第三移动止损位)", step=1, display = display.none, tooltip = '第二止盈位百分比，相对于震荡区域的范围的百分比，第二止盈位必须要大于第一止盈位，也是达到第三止盈位后的移动止损位', group = '高振幅')
+float limit3_pct_2 = input.float(250, "第三止盈位", step=1, display = display.none, tooltip = '第三止盈位百分比，相对于震荡区域的范围的百分比，第三止盈位必须要大于第二止盈位，否则第三止盈位无效', group = '高振幅')
+float limit4_pct_2 = input.float(310, "第四止盈位", step=1, display = display.none, tooltip = '第四止盈位百分比，相对于震荡区域的范围的百分比，第四止盈位必须要大于第三止盈位，否则第四止盈位无效', group = '正常振幅')
+
+float limit1_qty_pct = input.float(1, "第一止盈比例%", step=1, display = display.none, tooltip = '第一止盈位止盈数量的百分比', group = '止盈比例')
+float limit2_qty_pct = input.float(50, "第二止盈比例%", step=1, display = display.none, tooltip = '第二止盈位止盈数量的百分比', group = '止盈比例')
+float limit3_qty_pct = input.float(30, "第三止盈比例%", step=1, display = display.none, tooltip = '第三止盈位止盈数量的百分比', group = '止盈比例')
+
+// 振幅配置
+// //@variable 显著行情最小（%）
+// float significant_move_threshold_pct = 2.95
+// //@variable 显著行情最大（%）
+// float significant_move_threshold_pct_max = 4
+// //@variable 显著行情最大（根数）
+// int significant_move_duration_min= 150
+// //@variable 横盘区振幅最小（%）
+// float consolidation_range_min_pct = 0.8
+// //@variable 横盘区振幅最大（%
+// float consolidation_range_max_pct = 2.9
+// //@variable 横盘区跨度（根数）
+// int consolidation_duration_min = 290
+// //@variable 下单区域最短（根数）
+// int order_duration_min = 100
+// //@variable 下单区域右侧延长（根数）
+// int order_duration_right_add = 6
+
+float significant_move_threshold_pct = input.float(2.95, "显著行情最小（%）", display = display.none, group = '振幅配置')
+float significant_move_threshold_pct_max = input.float(4, "显著行情最大（%）", display = display.none, group = '振幅配置')
+int significant_move_duration_min= input.int(150, "显著行情最大（根数）", display = display.none, group = '振幅配置')
+float consolidation_range_min_pct = input.float(1.81, "横盘区振幅最小（%）", display = display.none, group = '振幅配置')  
+float consolidation_range_max_pct = input.float(2.9, "横盘区振幅最大（%）", display = display.none, group = '振幅配置') 
+int consolidation_duration_min = input.int(290, "横盘区最短（根数）", display = display.none, group = '振幅配置')
+int order_duration_min = input.int(100, "下单区域最短（根数）", display = display.none, group = '振幅配置')
+int order_duration_right_add = input.int(6, "下单区域右侧延长（根数）", display = display.none, group = '振幅配置')
+
+// 显示
+bool show_win_line = input.bool(true, "显示止盈线", display = display.none, group = '显示')
+bool show_loss_line = input.bool(true, "显示止损线", display = display.none, group = '显示')
+bool show_box_text = input.bool(true, "显示震荡区域提示文本", display = display.none, group = '显示')
+// 调试参数
+bool is_debug = input.bool(true, "调试模式", display = display.none, group = '调试参数')
+
+//@type 显著变化行情-详细数据
+//@field high_index 最高价格的 bar_index
+//@field high_price 最高价格
+//@field low_index 最低价格的 bar_index
+//@field low_price 最低价格
+//@field is_up 变化的方向，true - 上涨，false - 下跌
+//@field is_dis 是否结束
+//@field range_box 震荡区域
+//@field order_box 下单区域
+//@field middle_price_up 向上突破的止损位
+//@field middle_line_up 向上突破的止损位-画线
+//@field middle_price_down 向下突破的止损位
+//@field middle_line_down 向下突破的止损位-画线
+//@field up_win1_price 向上突破的第一止盈位
+//@field up_win1_line 向上突破的第一止盈位-画线
+//@field up_win2_price 向上突破的第二止盈位
+//@field up_win2_line 向上突破的第二止盈位-画线
+//@field up_win3_price 向上突破的第三止盈位
+//@field up_win3_line 向上突破的第三止盈位-画线
+//@field down_win1_price 向下突破的第一止盈位
+//@field down_win1_line 向下突破的第一止盈位-画线
+//@field down_win2_price 向下突破的第二止盈位
+//@field down_win2_line 向下突破的第二止盈位-画线
+//@field down_win3_price 向下突破的第三止盈位
+//@field down_win3_line 向下突破的第三止盈位-画线
+//@field order_dis_idx 下单区域结束索引
+//@field houzui 后缀，目前取值为 bar_index
+//@field isClose 本次突破的震荡和下单区域是否结束
+//@field move_up_win2_price 向上，第二移动止损位
+//@field move_up_win2_line 向上，第二移动止损位画线
+//@field move_up_win3_price 向上，第三移动止损位
+//@field move_down_win2_price 向下，第二移动止损位
+//@field move_down_win2_line 向下，第二移动止损位画线
+//@field move_down_win3_price 向下，第三移动止损位
+type significant
+    int high_index
+    float high_price
+    int low_index
+    float low_price
+    bool is_up
+    bool is_dis = false
+    box range_box = na
+    box order_box = na
+    float middle_price_up
+    line middle_line_up = na
+    float middle_price_down
+    line middle_line_down = na
+    float up_win1_price
+    line up_win1_line = na
+    float up_win2_price
+    line  up_win2_line= na
+    float up_win3_price
+    line up_win3_line = na
+    float up_win4_price
+    line up_win4_line = na
+    float down_win1_price
+    line down_win1_line = na
+    float down_win2_price
+    line down_win2_line = na
+    float down_win3_price
+    line down_win3_line = na
+    float down_win4_price
+    line down_win4_line = na
+    int order_dis_idx = na
+    string houzui = ''
+    bool isClose = false
+    float move_up_win2_price
+    line move_up_win2_line = na
+    float move_up_win3_price
+    line move_up_win3_line = na
+    float move_up_win4_price
+    float move_down_win2_price
+    line move_down_win2_line = na
+    float move_down_win3_price
+    line move_down_win3_line = na
+    float move_down_win4_price
+    float initial_qty
+//@variable 行情变化数组
+var significant_arr = array.new<significant>()
+
+//@type 盒子范围
+//@field top 顶部价格
+//@field bottom 底部价格
+//@field left 左侧 bar_index
+//@field right 右侧 bar_index
+type box_range
+    float top
+    float bottom
+    int left
+    int right
+//@variable 下单区域的范围
+var order_box = box_range.new(0, 0, 0, 0)
+
+// 计算成交量均值
+volume_ma = ta.sma(volume, volume_count) // 20周期成交量均值
+
+//@variable 计算过去，显著行情最大（根数）个柱子内的最低价
+lowestPrice = ta.lowest(low, significant_move_duration_min)
+//@variable 查找显著行情最大（根数）个柱子内最低价出现的位置
+lowestBarIndex = bar_index + ta.lowestbars(low, significant_move_duration_min)
+//@variable 计算过去，显著行情最大（根数）个柱子内的最高价
+highestPrice = ta.highest(high, significant_move_duration_min)
+//@variable 查找显著行情最大（根数）个柱子内最高价出现的位置
+highestBarIndex = bar_index + ta.highestbars(high, significant_move_duration_min)
+
+// @variable 连续止损次数
+var lx_stop_count = 0
+// @variable 最大连续止损次数
+var max_lx_stop_count = 0
+
+//@variable 最新的显著变化的涨跌幅
+float change_pct = 0
+//@variable 最新的显著变化是涨还是跌
+bool is_up = false
+
+//@variable 临时的信号，等有震荡区域后放入到数组中
+var significant tmp_sign = na
+//@variable 最后一笔多单
+var significant last_long_sign = na
+//@variable 最后一笔空单
+var significant last_short_sign = na
+
+//@variable 是否可以查找新的显著变化
+bool canFindChange = false
+
+// 没有信号，或者没有出现过买卖区域，或者有买卖区域就必须满足最小订单区域的宽度要求
+if significant_arr.size() < 1
+    canFindChange := true
+else if order_box.top <= 0
+    canFindChange := true
+else if order_box.top > 0 and (bar_index > order_duration_min + order_box.left)
+    canFindChange := true
+
+// 如果满足检查条件
+if canFindChange
+    if highestBarIndex < lowestBarIndex
+        is_up := false
+        change_pct := ((highestPrice - lowestPrice) / highestPrice) * 100
+    else if highestBarIndex > lowestBarIndex
+        is_up := true
+        change_pct := ((highestPrice - lowestPrice) / lowestPrice) * 100
+
+//@variable 最新的一段显著变化的低点的标记
+var label min = na
+//@variable 最新的一段显著变化的高点的标记
+var label max = na
+
+// 找出突变的点
+if change_pct >= significant_move_threshold_pct and change_pct <= significant_move_threshold_pct_max
+    //@variable 前一段显著变化的对象
+    significant pre = na
+    if significant_arr.size() > 0
+        pre := significant_arr.last()
+        // 给前一段，确定下单区域的结束位置
+        if na(pre.order_dis_idx)
+            pre.order_dis_idx := bar_index + order_duration_right_add
+    tmp_sign :=  significant.new(high_index =  highestBarIndex, high_price = highestPrice, low_index = lowestBarIndex, low_price = lowestPrice, is_up = is_up)
+    if is_up
+        tooltip = ''
+        if is_debug
+            tooltip := '低' + ":" + str.tostring(lowestBarIndex) + ":" + str.tostring(lowestPrice) + "\n"
+             + '高' + ":" + str.tostring(highestBarIndex) + ":" + str.tostring(highestPrice) + "\n" 
+             + '涨幅' + ":" + str.format("{0,number,#.##}", change_pct) + "%"
+        if not na(min)
+            min.delete()
+        min := label.new(lowestBarIndex, lowestPrice, "涨-低点", color=color.red, style=label.style_label_up, textcolor=color.white, tooltip = tooltip)
+        if not na(max)
+            max.delete()
+        max := label.new(highestBarIndex, highestPrice, "涨-高点", color=color.green, style=label.style_label_down, textcolor=color.white, tooltip =tooltip )
+    else if not is_up
+        tooltip = ''
+        if is_debug
+            tooltip :=  '高' + ":" + str.tostring(highestBarIndex) + ":" + str.tostring(highestPrice)+ "\n" 
+             + '低' + ":" + str.tostring(lowestBarIndex) + ":" + str.tostring(lowestPrice) + "\n" 
+             + '跌幅' + ":" +  str.format("{0,number,#.#}", change_pct) + "%"
+        if not na(max)
+            max.delete()
+        max := label.new(highestBarIndex, highestPrice, "跌-高点", color=color.green, style=label.style_label_down, textcolor=color.white, tooltip = tooltip)
+        if not na(min)
+            min.delete()
+        min := label.new(lowestBarIndex, lowestPrice, "跌-低点", color=color.red, style=label.style_label_up, textcolor=color.white, tooltip =tooltip )
+
+//@variable 计算过去 最低横盘区跨度（根数）内的最低价
+range_lowestPrice = ta.lowest(low, consolidation_duration_min)
+//@variable 计算过去 最低横盘区跨度（根数）内的最高价
+range_highestPrice = ta.highest(high, consolidation_duration_min)
+
+
+// 找出振幅范围
+if not na(tmp_sign)
+    // 震荡区域应该的涨跌方向
+    range_is_up = not tmp_sign.is_up
+    last_index = tmp_sign.is_up ? tmp_sign.high_index : tmp_sign.low_index
+    // 最后一个点没有结束, 并且间隔超过 横盘区最短（根数）
+    if tmp_sign.is_dis == false and bar_index - last_index > consolidation_duration_min
+        //@variable 震荡区域的振幅
+        float range_change_pct = 0
+        if range_is_up
+            range_change_pct := ((range_highestPrice - range_lowestPrice) / range_lowestPrice) * 100
+        else
+            range_change_pct := ((range_highestPrice - range_lowestPrice) / range_highestPrice) * 100
+
+        if range_change_pct >= consolidation_range_min_pct and range_change_pct <= consolidation_range_max_pct
+            // 表示有符合的震荡区间
+            left = time[consolidation_duration_min]
+            right = time
+            if na(tmp_sign.range_box)
+                if range_change_pct <= limit_pct_min
+                    price_span = (range_highestPrice - range_lowestPrice)
+                    tmp_sign.middle_price_up := range_highestPrice + (price_span * stop_pct / 100)
+                    tmp_sign.middle_price_down := range_lowestPrice - (price_span * stop_pct / 100)
+                    tmp_sign.up_win1_price := range_highestPrice + price_span * limit1_pct_0 / 100
+                    tmp_sign.up_win2_price := range_highestPrice + price_span * limit2_pct_0 / 100
+                    tmp_sign.up_win3_price := range_highestPrice + price_span * limit3_pct_0 / 100
+                    tmp_sign.up_win4_price := range_highestPrice + price_span * limit4_pct_0 / 100
+                    tmp_sign.move_up_win2_price := range_highestPrice + price_span * limit0_pct_0 / 100
+                    tmp_sign.move_up_win3_price := range_highestPrice + price_span * limit01_pct_0 / 100
+                    tmp_sign.move_up_win4_price := range_highestPrice + price_span * limit2_pct_0 / 100
+                    tmp_sign.down_win1_price := range_lowestPrice - price_span * limit1_pct_0 / 100
+                    tmp_sign.down_win2_price := range_lowestPrice - price_span * limit2_pct_0 / 100
+                    tmp_sign.down_win3_price := range_lowestPrice - price_span * limit3_pct_0 / 100
+                    tmp_sign.down_win4_price := range_lowestPrice - price_span * limit4_pct_0 / 100
+                    tmp_sign.move_down_win2_price := range_lowestPrice - price_span * limit0_pct_0 / 100
+                    tmp_sign.move_down_win3_price := range_lowestPrice - price_span * limit01_pct_0 / 100
+                    tmp_sign.move_down_win4_price := range_lowestPrice - price_span * limit2_pct_0 / 100
+                else if range_change_pct >= limit_pct_max
+                    price_span = (range_highestPrice - range_lowestPrice)
+                    tmp_sign.middle_price_up := range_highestPrice + (price_span * stop_pct / 100)
+                    tmp_sign.middle_price_down := range_lowestPrice - (price_span * stop_pct / 100)
+                    tmp_sign.up_win1_price := range_highestPrice + price_span * limit1_pct_2 / 100
+                    tmp_sign.up_win2_price := range_highestPrice + price_span * limit2_pct_2 / 100
+                    tmp_sign.up_win3_price := range_highestPrice + price_span * limit3_pct_2 / 100
+                    tmp_sign.up_win4_price := range_highestPrice + price_span * limit4_pct_2 / 100
+                    tmp_sign.move_up_win2_price := range_highestPrice + price_span * limit0_pct_2 / 100
+                    tmp_sign.move_up_win3_price := range_highestPrice + price_span * limit01_pct_2 / 100
+                    tmp_sign.move_up_win4_price := range_highestPrice + price_span * limit2_pct_2 / 100
+                    tmp_sign.down_win1_price := range_lowestPrice - price_span * limit1_pct_2 / 100
+                    tmp_sign.down_win2_price := range_lowestPrice - price_span * limit2_pct_2 / 100
+                    tmp_sign.down_win3_price := range_lowestPrice - price_span * limit3_pct_2 / 100
+                    tmp_sign.down_win4_price := range_lowestPrice - price_span * limit4_pct_2 / 100
+                    tmp_sign.move_down_win2_price := range_lowestPrice - price_span * limit0_pct_2 / 100
+                    tmp_sign.move_down_win3_price := range_lowestPrice - price_span * limit01_pct_2 / 100
+                    tmp_sign.move_down_win4_price := range_lowestPrice - price_span * limit2_pct_2 / 100
+                else
+                    price_span = (range_highestPrice - range_lowestPrice)
+                    tmp_sign.middle_price_up := range_highestPrice + (price_span * stop_pct / 100)
+                    tmp_sign.middle_price_down := range_lowestPrice - (price_span * stop_pct / 100)
+                    tmp_sign.up_win1_price := range_highestPrice + price_span * limit1_pct_1 / 100
+                    tmp_sign.up_win2_price := range_highestPrice + price_span * limit2_pct_1 / 100
+                    tmp_sign.up_win3_price := range_highestPrice + price_span * limit3_pct_1 / 100
+                    tmp_sign.up_win4_price := range_highestPrice + price_span * limit4_pct_1 / 100
+                    tmp_sign.move_up_win2_price := range_highestPrice + price_span * limit0_pct_1 / 100
+                    tmp_sign.move_up_win3_price := range_highestPrice + price_span * limit01_pct_1 / 100
+                    tmp_sign.move_up_win4_price := range_highestPrice + price_span * limit2_pct_1 / 100
+                    tmp_sign.down_win1_price := range_lowestPrice - price_span * limit1_pct_1 / 100
+                    tmp_sign.down_win2_price := range_lowestPrice - price_span * limit2_pct_1 / 100
+                    tmp_sign.down_win3_price := range_lowestPrice - price_span * limit3_pct_1 / 100
+                    tmp_sign.down_win4_price := range_lowestPrice - price_span * limit4_pct_1 / 100
+                    tmp_sign.move_down_win2_price := range_lowestPrice - price_span * limit0_pct_1 / 100
+                    tmp_sign.move_down_win3_price := range_lowestPrice - price_span * limit01_pct_2 / 100
+                    tmp_sign.move_down_win4_price := range_lowestPrice - price_span * limit2_pct_1 / 100
+
+                box_text = ''
+                if show_box_text
+                    box_text := '振幅' + ":" +  str.format("{0,number,#.##}", range_change_pct) + "%" 
+                     + '\n' + '高: ' + str.tostring(range_highestPrice) 
+                     + '\n' + '低: ' + str.tostring(range_lowestPrice)
+                tmp_sign.range_box := box.new(left, range_highestPrice, right, range_lowestPrice, xloc = xloc.bar_time, border_color=color.yellow, border_width=2, bgcolor=color.new(color.yellow, 80), text = box_text, text_color = color.orange, text_halign = text.align_left)
+                tmp_sign.order_box := box.new(time, range_highestPrice, time, range_lowestPrice, xloc = xloc.bar_time, border_color=color.green, border_width=1, bgcolor=color.new(color.green, 80), text_color = color.orange)
+                if show_loss_line
+                    tmp_sign.middle_line_up := line.new(time, tmp_sign.middle_price_up, time, tmp_sign.middle_price_up, xloc = xloc.bar_time, style = line.style_dashed, color = color.green ,force_overlay = true, width = 1)
+                    tmp_sign.middle_line_down := line.new(time, tmp_sign.middle_price_down, time, tmp_sign.middle_price_down, xloc = xloc.bar_time, style = line.style_dashed, color = color.red ,force_overlay = true, width = 1)
+                if show_win_line
+                    tmp_sign.up_win1_line := line.new(time, tmp_sign.up_win1_price, time, tmp_sign.up_win1_price, xloc = xloc.bar_time, style = line.style_dashed, color = #afd5ab ,force_overlay = true, width = 2)
+                    tmp_sign.up_win2_line := line.new(time, tmp_sign.up_win2_price, time, tmp_sign.up_win2_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.green ,force_overlay = true, width = 2)
+                    tmp_sign.up_win3_line := line.new(time, tmp_sign.up_win3_price, time, tmp_sign.up_win3_price, xloc = xloc.bar_time, style = line.style_dashed, color = #2f6e31 ,force_overlay = true, width = 2)
+                    tmp_sign.up_win4_line := line.new(time, tmp_sign.up_win4_price, time, tmp_sign.up_win4_price, xloc = xloc.bar_time, style = line.style_dashed, color = #123013 ,force_overlay = true, width = 2)
+                    tmp_sign.down_win1_line := line.new(time, tmp_sign.down_win1_price, time, tmp_sign.down_win1_price, xloc = xloc.bar_time, style = line.style_dashed, color = #eda5a6 ,force_overlay = true, width = 2)
+                    tmp_sign.down_win2_line := line.new(time, tmp_sign.down_win2_price, time, tmp_sign.down_win2_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.red ,force_overlay = true, width = 2)
+                    tmp_sign.down_win3_line := line.new(time, tmp_sign.down_win3_price, time, tmp_sign.down_win3_price, xloc = xloc.bar_time, style = line.style_dashed, color = #681515 ,force_overlay = true, width = 2)
+                    tmp_sign.down_win4_line := line.new(time, tmp_sign.down_win4_price, time, tmp_sign.down_win4_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.rgb(67, 12, 12) ,force_overlay = true, width = 2)
+                    tmp_sign.move_up_win2_line := line.new(time, tmp_sign.move_up_win2_price, time, tmp_sign.move_up_win2_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.gray ,force_overlay = true, width = 1)
+                    tmp_sign.move_down_win2_line := line.new(time, tmp_sign.move_down_win2_price, time, tmp_sign.move_down_win2_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.gray ,force_overlay = true, width = 1)
+                    tmp_sign.move_up_win3_line := line.new(time, tmp_sign.move_up_win3_price, time, tmp_sign.move_up_win3_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.gray ,force_overlay = true, width = 1)
+                    tmp_sign.move_down_win3_line := line.new(time, tmp_sign.move_down_win3_price, time, tmp_sign.move_down_win3_price, xloc = xloc.bar_time, style = line.style_dashed, color = color.gray ,force_overlay = true, width = 1)
+                order_box := box_range.new(range_highestPrice, range_lowestPrice, bar_index, bar_index)
+                significant_arr.push(tmp_sign.copy())
+                tmp_sign := na
+
+// 设置box和line，并检查下单区域是否结束
+if significant_arr.size() > 0
+    sign = significant_arr.last()
+    if bar_index > sign.order_dis_idx
+        sign.is_dis := true
+    else if not na(sign.range_box)
+        sign.order_box.set_right(time)
+        order_box.right := bar_index
+        if show_loss_line
+            sign.middle_line_up.set_x2(time)
+            sign.middle_line_down.set_x2(time)
+        if show_win_line
+            sign.up_win1_line.set_x2(time)
+            sign.up_win2_line.set_x2(time)
+            sign.up_win3_line.set_x2(time)
+            sign.up_win4_line.set_x2(time)
+            sign.down_win1_line.set_x2(time)
+            sign.down_win2_line.set_x2(time)
+            sign.down_win3_line.set_x2(time)
+            sign.down_win4_line.set_x2(time)
+            sign.move_up_win2_line.set_x2(time)
+            sign.move_down_win2_line.set_x2(time)
+            sign.move_up_win3_line.set_x2(time)
+            sign.move_down_win3_line.set_x2(time)
+
+//@function 检查指定的 entry_id 是否仍有未平仓头寸
+//@param entry_id 开仓订单id
+//@returns 订单是否开启
+is_entry_open(string entry_id) =>
+    bool _open = false
+    for i = 0 to strategy.opentrades - 1
+        if strategy.opentrades.entry_id(i) == entry_id
+            _open := true
+            break
+    _open
+//@function 检查指定的 exit_id 是否仍有未平仓头寸
+//@param exit_id 平仓订单id
+//@returns 订单是否开启
+is_exit_open(string exit_id) =>
+    bool _open = true
+    for i = 0 to strategy.closedtrades - 1
+        if strategy.closedtrades.exit_id(i) == exit_id
+            _open := false
+            break
+    _open
+
+//@variable ok中 BTC 的精度为 3 位小数
+precision = 4
+//@function 根据百分比计算并应用精度
+calcQty(percent, initial_qty) =>
+    qty = math.abs(initial_qty) * (percent / 100)
+    rounded_qty = math.round(qty * math.pow(10, precision)) / math.pow(10, precision)
+    rounded_qty
+
+pre_long = '多_'
+pre_short = '空_'
+pre_exit = '止_'
+
+
+// float usdt_count  = usdt_margin * 100
+
+//@variable 计算合约下单的usdt金额
+float usdt_count  = usdt_margin * strategy.initial_capital
+// strategy.netprofit + strategy.initial_capital
+if use_fuli
+    usdt_count := usdt_margin * strategy.equity
+
+// 自定义追踪第一平仓结果
+var bool tradeActive = false
+var float entryPrice = na
+var bool firstExitProcessed = false
+var float firstExitPrice = na
+var int direction = 0 // 1:多单 -1:空单
+
+if (strategy.opentrades == 1 and not tradeActive)
+    entryPrice := strategy.opentrades.entry_price(0)
+    tradeActive := true
+    firstExitProcessed := false
+if (strategy.opentrades == 0 and tradeActive and not firstExitProcessed)
+    firstExitPrice := close
+    firstExitProcessed := true
+    tradeActive := false
+    // 判断盈亏
+    profit = direction == 1 ? (firstExitPrice - entryPrice) : (entryPrice - firstExitPrice)
+    if profit < 0
+        lx_stop_count := lx_stop_count + 1
+        if lx_stop_count > max_lx_stop_count
+            max_lx_stop_count := lx_stop_count
+    else if profit > 0
+        lx_stop_count := 0
+    
+    // log.info("连续止损：" + str.tostring(lx_stop_count))
+
+// 检查最后一个多单
+if not na(last_long_sign)
+    _long_id = pre_long + last_long_sign.houzui
+    if is_entry_open(_long_id)
+        // 止盈1的已经完成
+        if not is_exit_open( pre_exit + "1_" + last_long_sign.houzui)
+            // 止盈2的已经完成, 移动3
+            if not is_exit_open( pre_exit + "2_" + last_long_sign.houzui)
+                // 止盈3的已经完成, 移动4
+                if not is_exit_open( pre_exit + "3_" + last_long_sign.houzui)
+                    strategy.exit(id = pre_exit + "4_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win4_price, limit=last_long_sign.up_win4_price, comment_loss = '多_移动止盈4_' + last_long_sign.houzui, comment_profit = '多第4止盈位-' + last_long_sign.houzui)
+                else
+                    strategy.exit(id = pre_exit + "3_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win3_price, limit=last_long_sign.up_win3_price, qty = calcQty(limit3_qty_pct, last_long_sign.initial_qty), comment_loss = '多_移动止盈3_' + last_long_sign.houzui, comment_profit = '多第3止盈位-' + last_long_sign.houzui)
+                    strategy.exit(id = pre_exit + "4_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win3_price, limit=last_long_sign.up_win4_price, comment_loss = '多_移动止盈4_' + last_long_sign.houzui, comment_profit = '多第4止盈位-' + last_long_sign.houzui)
+            // 止盈2没有完成，, 移动止盈2和3
+            else
+                strategy.exit(id = pre_exit + "2_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win2_price, limit=last_long_sign.up_win2_price, qty = calcQty(limit2_qty_pct, last_long_sign.initial_qty), comment_loss = '多_移动止盈2_' + last_long_sign.houzui, comment_profit = '多第2止盈位-' + last_long_sign.houzui)
+                strategy.exit(id = pre_exit + "3_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win2_price, limit=last_long_sign.up_win3_price, qty = calcQty(limit3_qty_pct, last_long_sign.initial_qty), comment_loss = '多_移动止盈3_' + last_long_sign.houzui, comment_profit = '多第3止盈位-' + last_long_sign.houzui)
+                strategy.exit(id = pre_exit + "4_" + last_long_sign.houzui, from_entry=_long_id, stop=last_long_sign.move_up_win2_price, limit=last_long_sign.up_win4_price, comment_loss = '多_移动止盈4_' + last_long_sign.houzui, comment_profit = '多第4止盈位-' + last_long_sign.houzui)
+    else 
+        last_long_sign.isClose := true
+
+// 检查最后一个空单
+if not na(last_short_sign)
+    _short_id = pre_short + last_short_sign.houzui
+    if is_entry_open(_short_id)
+        // 止盈1的已经完成
+        if not is_exit_open( pre_exit + "1_" + last_short_sign.houzui)
+            // 止盈2的已经完成, 移动3
+            if not is_exit_open( pre_exit + "2_" + last_short_sign.houzui)
+                // 止盈3的已经完成, 移动4
+                if not is_exit_open( pre_exit + "3_" + last_short_sign.houzui)
+                    strategy.exit(id = pre_exit + "4_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win4_price, limit=last_short_sign.down_win4_price, comment_loss = '空_移动止盈4_' + last_short_sign.houzui, comment_profit = '空第4止盈位-' + last_short_sign.houzui)
+                else
+                    strategy.exit(id = pre_exit + "3_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win3_price, limit=last_short_sign.down_win3_price, qty = calcQty(limit3_qty_pct, last_short_sign.initial_qty), comment_loss = '空_移动止盈3_' + last_short_sign.houzui, comment_profit = '空第3止盈位-' + last_short_sign.houzui)
+                    strategy.exit(id = pre_exit + "4_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win3_price, limit=last_short_sign.down_win4_price, comment_loss = '空_移动止盈4_' + last_short_sign.houzui, comment_profit = '空第4止盈位-' + last_short_sign.houzui)
+            // 止盈2没有完成，, 移动止盈2和3
+            else
+                strategy.exit(id = pre_exit + "2_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win2_price, limit=last_short_sign.down_win2_price, qty = calcQty(limit2_qty_pct, last_short_sign.initial_qty), comment_loss = '空_移动止盈2_' + last_short_sign.houzui, comment_profit = '空第2止盈位-' + last_short_sign.houzui)
+                strategy.exit(id = pre_exit + "3_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win2_price, limit=last_short_sign.down_win3_price, qty = calcQty(limit3_qty_pct, last_short_sign.initial_qty), comment_loss = '空_移动止盈3_' + last_short_sign.houzui, comment_profit = '空第3止盈位-' + last_short_sign.houzui)
+                strategy.exit(id = pre_exit + "4_" + last_short_sign.houzui, from_entry=_short_id, stop=last_short_sign.move_down_win2_price, limit=last_short_sign.down_win4_price, comment_loss = '空_移动止盈4_' + last_short_sign.houzui, comment_profit = '空第4止盈位-' + last_short_sign.houzui)
+    else 
+        last_short_sign.isClose := true
+
+
+invis = color.rgb(0,0,0,100)
+longColor = #089981
+shotColor = #f23645
+
+//@variable 是否上穿
+is_crossover = ta.crossover(close, order_box.top) and barstate.isconfirmed
+//@variable 是否下穿
+is_crossunder = ta.crossunder(close, order_box.bottom) and barstate.isconfirmed
+
+// 寻找买卖点
+if significant_arr.size() > 0 and time > open_time 
+    //@variable 最新的一段
+    sign = significant_arr.last()
+    if sign.is_dis == false and not na(sign.order_box)
+        //@variable 后缀
+        houzui = str.tostring(bar_index)
+        //@variable 多单id
+        long_id = pre_long + houzui
+        //@variable 空单id
+        short_id = pre_short + houzui
+
+        
+        _usdt_margin = usdt_margin
+        if lx_stop_count < stop_count1
+            _usdt_margin := usdt_margin
+        else if lx_stop_count >= stop_count1 and lx_stop_count < stop_count2
+            _usdt_margin := usdt_margin + usdt_margin1
+        else if lx_stop_count >= stop_count2
+            _usdt_margin := usdt_margin + usdt_margin2
+        
+        usdt_count  := _usdt_margin * strategy.initial_capital
+        if use_fuli
+            usdt_count := _usdt_margin * strategy.equity
+
+        //@variable 购买btc的数量
+        // btc_account = usdt_count / close
+        // btc_account = str.tonumber(str.format('{0,number,#.###}', usdt_count / close))
+        btc_account = math.round((usdt_count / close) * math.pow(10, precision)) / math.pow(10, precision)
+
+        bool is_fl = true
+        if volume_open
+            is_fl :=  (volume > volume_ma * volume_multiplier)
+        
+        //@variable 最后一笔多单是否还没有结束
+        is_last_long_open = false
+        if not na(last_long_sign)
+            is_last_long_open := not last_long_sign.isClose
+        if is_crossover and not is_last_long_open and open_long and is_fl
+            sign.houzui := houzui
+            // 设置新的最后一笔多单
+            last_long_sign := sign.copy()
+            last_long_sign.initial_qty := btc_account
+            // 开多单
+            direction := 1
+            // if lx_stop_count > 0
+            //     log.info( "开多：" + str.tostring(btc_account) + "  连续止损：" + str.tostring(lx_stop_count))
+            strategy.entry(long_id, strategy.long, qty = btc_account)
+            // 设置第一个止盈
+            // log.info( "开多止盈止损1：" + str.tostring(calcQty(limit1_qty_pct, btc_account)))
+            strategy.exit(id= pre_exit + "1_" + houzui, from_entry = long_id, stop = sign.middle_price_up, limit = sign.up_win1_price, qty = calcQty(limit1_qty_pct, btc_account), comment_loss = '多止损1_' + houzui, comment_profit = '多第1止盈位-' + houzui)
+            // 设置第二个止盈
+            strategy.exit(id= pre_exit + "2_" + houzui, from_entry = long_id, stop = sign.middle_price_up, limit = sign.up_win2_price, qty = calcQty(limit2_qty_pct, btc_account), comment_loss = '多止损2_' + houzui, comment_profit = '多第2止盈位-' + houzui)
+            // 设置第三个止盈
+            strategy.exit(id= pre_exit + "3_" + houzui, from_entry = long_id, stop = sign.middle_price_up, limit = sign.up_win3_price, qty = calcQty(limit3_qty_pct, btc_account), comment_loss = '多止损3_' + houzui, comment_profit = '多第3止盈位-' + houzui)
+            // 设置第4个止盈
+            strategy.exit(id= pre_exit + "4_" + houzui, from_entry = long_id, stop = sign.middle_price_up, limit = sign.up_win4_price, comment_loss = '多止损4_' + houzui, comment_profit = '多第4止盈位-' + houzui)
+        
+        //@variable 最后一笔空单是否还没有结束
+        is_last_short_open = false
+        if not na(last_short_sign)
+            is_last_short_open := not last_short_sign.isClose
+        //  and barstate.ishistory
+        if is_crossunder and not is_last_short_open and open_short and is_fl
+            sign.houzui := houzui
+            // 设置新的最后一笔空单
+            last_short_sign := sign.copy()
+            last_short_sign.initial_qty := btc_account
+            // 开空单
+            direction := -1
+            // if lx_stop_count > 0
+            //     log.info( "开空：" + str.tostring(btc_account) + "  连续止损：" + str.tostring(lx_stop_count))
+            strategy.entry(short_id, strategy.short, qty = btc_account)
+            // 设置第一个止盈
+            strategy.exit(id= pre_exit + "1_" + houzui, from_entry = short_id, stop = sign.middle_price_down, limit = sign.down_win1_price, qty = calcQty(limit1_qty_pct, btc_account), comment_loss = '空止损1_' + houzui, comment_profit = '空第1止盈位-' + houzui)
+            // 设置第二个止盈
+            strategy.exit(id= pre_exit + "2_" + houzui, from_entry = short_id, stop = sign.middle_price_down, limit = sign.down_win2_price, qty = calcQty(limit2_qty_pct, btc_account), comment_loss = '空止损2_' + houzui, comment_profit = '空第2止盈位-' + houzui)
+            // 设置第三个止盈
+            strategy.exit(id= pre_exit + "3_" + houzui, from_entry = short_id, stop = sign.middle_price_down, limit = sign.down_win3_price, qty = calcQty(limit3_qty_pct, btc_account), comment_loss = '空止损3_' + houzui, comment_profit = '空第3止盈位-' + houzui)
+            // 设置第4个止盈
+            strategy.exit(id= pre_exit + "4_" + houzui, from_entry = short_id, stop = sign.middle_price_down, limit = sign.down_win3_price, comment_loss = '空止损4_' + houzui, comment_profit = '空第4止盈位-' + houzui)
+
+plotchar(bar_index, "索引", "", location.top, format = format.price, color = color.lime, display= is_debug ? display.status_line : display.none)
+
+tb = table.new(position.bottom_right,4,16,border_color = color.blue,border_width = 1, bgcolor = color.rgb(204, 202, 180))
+if is_debug or use_fuli
+    tb.cell(0,0,"当前净值", text_color = color.blue)
+    tb.cell(1,0,str.format("{0,number,#.##}", strategy.equity), text_color = color.blue)
+    // tb.cell(2,0,"已平仓数", text_color = color.blue)    
+    // tb.cell(3,0,str.tostring(strategy.closedtrades), text_color=color.blue, text_halign = text.align_left)
+if is_debug
+    tb.cell(0,1,"已平仓收益", text_color = color.blue)
+    tb.cell(1,1,str.format("{0,number,#.##}", strategy.netprofit), text_color= strategy.netprofit >= 0 ? color.green : color.red, text_halign = text.align_left)
+    tb.cell(0,2,"未平仓收益", text_color = color.blue)
+    tb.cell(1,2,str.format("{0,number,#.##}", strategy.openprofit), text_color= strategy.openprofit >= 0 ? color.green : color.red, text_halign = text.align_left)
+    tb.cell(0,3,"连续止损数", text_color = color.blue)
+    tb.cell(1,3,str.tostring(lx_stop_count), text_color= color.rgb(165, 20, 32), text_halign = text.align_left)
+    tb.cell(0,4,"最大止损数", text_color = color.blue)    
+    tb.cell(1,4,str.tostring(max_lx_stop_count), text_color= color.rgb(165, 20, 32), text_halign = text.align_left)
